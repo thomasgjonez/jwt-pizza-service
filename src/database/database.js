@@ -346,8 +346,12 @@ class DB {
         }
 
         if (!dbExists) {
-          const defaultAdmin = { name: '常用名字', email: 'a@jwt.com', password: 'admin', roles: [{ role: Role.Admin }] };
-          this.addUser(defaultAdmin);
+          // Insert directly on this connection instead of going through addUser(), which
+          // calls getConnection() and would deadlock waiting on this.initialized to resolve.
+          const defaultAdmin = { name: '常用名字', email: 'a@jwt.com', password: 'admin' };
+          const hashedPassword = await bcrypt.hash(defaultAdmin.password, 10);
+          const userResult = await this.query(connection, `INSERT INTO user (name, email, password) VALUES (?, ?, ?)`, [defaultAdmin.name, defaultAdmin.email, hashedPassword]);
+          await this.query(connection, `INSERT INTO userRole (userId, role, objectId) VALUES (?, ?, ?)`, [userResult.insertId, Role.Admin, 0]);
         }
       } finally {
         connection.end();
