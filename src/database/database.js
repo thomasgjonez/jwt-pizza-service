@@ -345,7 +345,11 @@ class DB {
           await connection.query(statement);
         }
 
-        if (!dbExists) {
+        // Some MySQL setups (e.g. the mysql Docker image with MYSQL_DATABASE set) create the
+        // schema on container boot, so dbExists is true even on a brand new database with no
+        // rows. Check for the admin user directly instead of relying on dbExists.
+        const adminExists = await this.query(connection, `SELECT id FROM user WHERE email=?`, ['a@jwt.com']);
+        if (adminExists.length === 0) {
           // Insert directly on this connection instead of going through addUser(), which
           // calls getConnection() and would deadlock waiting on this.initialized to resolve.
           const defaultAdmin = { name: '常用名字', email: 'a@jwt.com', password: 'admin' };
