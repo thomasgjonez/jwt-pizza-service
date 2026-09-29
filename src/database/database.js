@@ -93,7 +93,8 @@ class DB {
         const query = `UPDATE user SET ${params.join(', ')} WHERE id=${userId}`;
         await this.query(connection, query);
       }
-      return this.getUser(email, password);
+      const [currentUser] = await this.query(connection, `SELECT email FROM user WHERE id=?`, [userId]);
+      return this.getUser(currentUser.email, null);
     } finally {
       connection.end();
     }
