@@ -50,12 +50,30 @@ test("admin can update another user", async () => {
   expect(updateRes.body.user.name).toBe("admin updated name");
 });
 
-test("delete user", async () => {
+test("delete user unauthorized", async () => {
+  const deleteRes = await request(app).delete(`/api/user/${dinerA.user.id}`);
+  expect(deleteRes.status).toBe(401);
+});
+
+test("delete user forbidden for non-admin", async () => {
+  const target = await registerDiner();
   const deleteRes = await request(app)
-    .delete(`/api/user/${dinerA.user.id}`)
-    .set("Authorization", `Bearer ${dinerA.token}`);
+    .delete(`/api/user/${target.user.id}`)
+    .set("Authorization", `Bearer ${dinerB.token}`);
+  expect(deleteRes.status).toBe(403);
+});
+
+test("admin can delete a user", async () => {
+  const target = await registerDiner();
+  const deleteRes = await request(app)
+    .delete(`/api/user/${target.user.id}`)
+    .set("Authorization", `Bearer ${adminToken}`);
   expect(deleteRes.status).toBe(200);
-  expect(deleteRes.body.message).toBe("not implemented");
+
+  const loginRes = await request(app)
+    .put("/api/auth")
+    .send(target.credentials);
+  expect(loginRes.status).toBe(404);
 });
 
 // test('list users', async () => {
@@ -66,6 +84,7 @@ test("delete user", async () => {
 //   expect(listRes.body).toMatchObject({ users: [], more: false });
 // });
 
+// NEED TO FIX LINTING ERROR
 test("list users unauthorized", async () => {
   const listUsersRes = await request(app).get("/api/user");
   expect(listUsersRes.status).toBe(401);
