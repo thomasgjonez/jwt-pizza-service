@@ -84,14 +84,13 @@ test("admin can delete a user", async () => {
 //   expect(listRes.body).toMatchObject({ users: [], more: false });
 // });
 
-// NEED TO FIX LINTING ERROR
 test("list users unauthorized", async () => {
   const listUsersRes = await request(app).get("/api/user");
   expect(listUsersRes.status).toBe(401);
 });
 
 test("list users", async () => {
-  const [user, userToken] = await registerUser(request(app));
+  const [, userToken] = await registerUser(request(app));
   const listUsersRes = await request(app)
     .get("/api/user")
     .set("Authorization", "Bearer " + userToken);
