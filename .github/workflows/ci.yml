@@ -128,8 +128,7 @@ jobs:
           echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:latest" >>  $GITHUB_OUTPUT
       - name: Deploy new container
         run: |
-          SERVICE_ARN=$(aws ecs list-services --cluster jwt-pizza-service --query 'serviceArns[0]' --output text)
-          aws ecs update-service --cluster jwt-pizza-service --service "$SERVICE_ARN" --force-new-deployment
+          aws ecs update-service --cluster jwt-pizza-service --service jwt-pizza-service-service-6wcloxe5 --force-new-deployment
 
       - name: Write config file
         run: |
