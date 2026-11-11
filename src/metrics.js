@@ -13,13 +13,20 @@ class Metrics {
     this.purchaseLatencySum = 0;
     this.purchaseLatencyCount = 0;
 
+    this.authAttemptsSuccess = 0;
+    this.authAttemptsFailure = 0;
+    this.activeUsers = 0;
+
+    this.requestLatencySum = 0;
+    this.requestLatencyCount = 0;
+
     // Bind so it can be handed directly to app.use(metrics.requestTracker)
     this.requestTracker = this.requestTracker.bind(this);
 
     this.sendMetricsPeriodically(10000);
   }
 
-  // Express middleware that records a count for every incoming request.
+  // Express middleware that records a count and latency for every incoming request.
   requestTracker(req, res, next) {
     this.totalRequests++;
 
@@ -29,7 +36,27 @@ class Metrics {
     const endpoint = this.getEndpointGroup(req.baseUrl || req.originalUrl || req.url);
     this.requestsByEndpoint[endpoint] = (this.requestsByEndpoint[endpoint] || 0) + 1;
 
+    const startTime = Date.now();
+    res.on('finish', () => {
+      this.requestLatencySum += Date.now() - startTime;
+      this.requestLatencyCount++;
+    });
+
     next();
+  }
+
+  // Called whenever a user successfully or unsuccessfully attempts to authenticate.
+  authAttempt(success) {
+    if (success) {
+      this.authAttemptsSuccess++;
+    } else {
+      this.authAttemptsFailure++;
+    }
+  }
+
+  // Called when a user logs in (delta = 1) or logs out (delta = -1).
+  activeUserChange(delta) {
+    this.activeUsers = Math.max(0, this.activeUsers + delta);
   }
 
   // Collapse a URL down to a low-cardinality group (e.g. /api/order) so metric
@@ -91,6 +118,17 @@ class Metrics {
           this.sendMetricToGrafana('purchase_latency', averageLatency, 'gauge', 'ms');
           this.purchaseLatencySum = 0;
           this.purchaseLatencyCount = 0;
+        }
+
+        this.sendMetricToGrafana('auth_attempts', this.authAttemptsSuccess, 'sum', '1', { result: 'success' });
+        this.sendMetricToGrafana('auth_attempts', this.authAttemptsFailure, 'sum', '1', { result: 'failure' });
+        this.sendMetricToGrafana('active_users', this.activeUsers, 'gauge', '1');
+
+        if (this.requestLatencyCount > 0) {
+          const averageRequestLatency = this.requestLatencySum / this.requestLatencyCount;
+          this.sendMetricToGrafana('request_latency', averageRequestLatency, 'gauge', 'ms');
+          this.requestLatencySum = 0;
+          this.requestLatencyCount = 0;
         }
       } catch (error) {
         console.error('Error sending metrics', error);
