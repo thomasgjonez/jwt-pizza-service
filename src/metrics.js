@@ -191,11 +191,12 @@ class Metrics {
         'Content-Type': 'application/json',
       },
     })
-      .then((response) => {
+      .then(async (response) => {
+        // Always drain the body, even on success, so the connection is
+        // released back to the keep-alive pool instead of leaking.
+        const text = await response.text();
         if (!response.ok) {
-          response.text().then((text) => {
-            console.error(`Failed to push metrics data to Grafana: ${text}\n${body}`);
-          });
+          console.error(`Failed to push metrics data to Grafana: ${text}\n${body}`);
         }
       })
       .catch((error) => {
