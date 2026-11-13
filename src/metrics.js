@@ -151,6 +151,10 @@ class Metrics {
       dataPoint.asDouble = metricValue;
     }
 
+    if (config.metrics && config.metrics.source) {
+      attributes = { source: config.metrics.source, ...attributes };
+    }
+
     const attributeKeys = Object.keys(attributes);
     if (attributeKeys.length > 0) {
       dataPoint.attributes = attributeKeys.map((key) => ({
