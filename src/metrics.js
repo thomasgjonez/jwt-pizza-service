@@ -1,5 +1,5 @@
-const os = require('os');
-const config = require('./config.js');
+const os = require("os");
+const config = require("./config.js");
 
 class Metrics {
   constructor() {
@@ -35,11 +35,14 @@ class Metrics {
     const method = req.method;
     this.requestsByMethod[method] = (this.requestsByMethod[method] || 0) + 1;
 
-    const endpoint = this.getEndpointGroup(req.baseUrl || req.originalUrl || req.url);
-    this.requestsByEndpoint[endpoint] = (this.requestsByEndpoint[endpoint] || 0) + 1;
+    const endpoint = this.getEndpointGroup(
+      req.baseUrl || req.originalUrl || req.url
+    );
+    this.requestsByEndpoint[endpoint] =
+      (this.requestsByEndpoint[endpoint] || 0) + 1;
 
     const startTime = Date.now();
-    res.on('finish', () => {
+    res.on("finish", () => {
       this.requestLatencySum += Date.now() - startTime;
       this.requestLatencyCount++;
     });
@@ -61,12 +64,10 @@ class Metrics {
     this.activeUsers = Math.max(0, this.activeUsers + delta);
   }
 
-  // Collapse a URL down to a low-cardinality group (e.g. /api/order) so metric
-  // series don't explode with one series per order ID, menu item, etc.
   getEndpointGroup(url) {
-    const path = url.split('?')[0];
-    const parts = path.split('/').filter(Boolean);
-    return '/' + parts.slice(0, 2).join('/');
+    const path = url.split("?")[0];
+    const parts = path.split("/").filter(Boolean);
+    return "/" + parts.slice(0, 2).join("/");
   }
 
   // Called whenever an order is placed with the Pizza Factory, success or not.
@@ -98,46 +99,101 @@ class Metrics {
   sendMetricsPeriodically(period) {
     const timer = setInterval(() => {
       try {
-        this.sendMetricToGrafana('requests', this.totalRequests, 'sum', '1');
+        this.sendMetricToGrafana("requests", this.totalRequests, "sum", "1");
 
         Object.keys(this.requestsByMethod).forEach((method) => {
-          this.sendMetricToGrafana('requests', this.requestsByMethod[method], 'sum', '1', { method });
+          this.sendMetricToGrafana(
+            "requests",
+            this.requestsByMethod[method],
+            "sum",
+            "1",
+            { method }
+          );
         });
 
         Object.keys(this.requestsByEndpoint).forEach((endpoint) => {
-          this.sendMetricToGrafana('requests', this.requestsByEndpoint[endpoint], 'sum', '1', { endpoint });
+          this.sendMetricToGrafana(
+            "requests",
+            this.requestsByEndpoint[endpoint],
+            "sum",
+            "1",
+            { endpoint }
+          );
         });
 
-        this.sendMetricToGrafana('cpu', this.getCpuUsagePercentage(), 'gauge', '%');
-        this.sendMetricToGrafana('memory', Number(this.getMemoryUsagePercentage()), 'gauge', '%');
+        this.sendMetricToGrafana(
+          "cpu",
+          this.getCpuUsagePercentage(),
+          "gauge",
+          "%"
+        );
+        this.sendMetricToGrafana(
+          "memory",
+          Number(this.getMemoryUsagePercentage()),
+          "gauge",
+          "%"
+        );
 
-        this.sendMetricToGrafana('pizzas_sold', this.pizzasSold, 'sum', '1');
-        this.sendMetricToGrafana('revenue', this.revenue, 'sum', 'BTC');
-        this.sendMetricToGrafana('purchase_failures', this.purchaseFailures, 'sum', '1');
+        this.sendMetricToGrafana("pizzas_sold", this.pizzasSold, "sum", "1");
+        this.sendMetricToGrafana("revenue", this.revenue, "sum", "BTC");
+        this.sendMetricToGrafana(
+          "purchase_failures",
+          this.purchaseFailures,
+          "sum",
+          "1"
+        );
 
         if (this.purchaseLatencyCount > 0) {
-          this.lastPurchaseLatency = this.purchaseLatencySum / this.purchaseLatencyCount;
+          this.lastPurchaseLatency =
+            this.purchaseLatencySum / this.purchaseLatencyCount;
           this.purchaseLatencySum = 0;
           this.purchaseLatencyCount = 0;
         }
-        this.sendMetricToGrafana('purchase_latency', this.lastPurchaseLatency, 'gauge', 'ms');
+        this.sendMetricToGrafana(
+          "purchase_latency",
+          this.lastPurchaseLatency,
+          "gauge",
+          "ms"
+        );
 
-        this.sendMetricToGrafana('auth_attempts', this.authAttemptsSuccess, 'sum', '1', { result: 'success' });
-        this.sendMetricToGrafana('auth_attempts', this.authAttemptsFailure, 'sum', '1', { result: 'failure' });
-        this.sendMetricToGrafana('active_users', this.activeUsers, 'gauge', '1');
+        this.sendMetricToGrafana(
+          "auth_attempts",
+          this.authAttemptsSuccess,
+          "sum",
+          "1",
+          { result: "success" }
+        );
+        this.sendMetricToGrafana(
+          "auth_attempts",
+          this.authAttemptsFailure,
+          "sum",
+          "1",
+          { result: "failure" }
+        );
+        this.sendMetricToGrafana(
+          "active_users",
+          this.activeUsers,
+          "gauge",
+          "1"
+        );
 
         if (this.requestLatencyCount > 0) {
-          this.lastRequestLatency = this.requestLatencySum / this.requestLatencyCount;
+          this.lastRequestLatency =
+            this.requestLatencySum / this.requestLatencyCount;
           this.requestLatencySum = 0;
           this.requestLatencyCount = 0;
         }
-        this.sendMetricToGrafana('request_latency', this.lastRequestLatency, 'gauge', 'ms');
+        this.sendMetricToGrafana(
+          "request_latency",
+          this.lastRequestLatency,
+          "gauge",
+          "ms"
+        );
       } catch (error) {
-        console.error('Error sending metrics', error);
+        console.error("Error sending metrics", error);
       }
     }, period);
 
-    // Don't let the periodic reporter keep the process alive (e.g. in tests).
     if (timer.unref) timer.unref();
   }
 
@@ -183,30 +239,33 @@ class Metrics {
       ],
     };
 
-    if (type === 'sum') {
-      metric.resourceMetrics[0].scopeMetrics[0].metrics[0][type].aggregationTemporality = 'AGGREGATION_TEMPORALITY_CUMULATIVE';
-      metric.resourceMetrics[0].scopeMetrics[0].metrics[0][type].isMonotonic = true;
+    if (type === "sum") {
+      metric.resourceMetrics[0].scopeMetrics[0].metrics[0][
+        type
+      ].aggregationTemporality = "AGGREGATION_TEMPORALITY_CUMULATIVE";
+      metric.resourceMetrics[0].scopeMetrics[0].metrics[0][
+        type
+      ].isMonotonic = true;
     }
 
     const body = JSON.stringify(metric);
     fetch(`${config.metrics.endpointUrl}`, {
-      method: 'POST',
+      method: "POST",
       body: body,
       headers: {
         Authorization: `Bearer ${config.metrics.accountId}:${config.metrics.apiKey}`,
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
     })
       .then(async (response) => {
-        // Always drain the body, even on success, so the connection is
-        // released back to the keep-alive pool instead of leaking.
-        const text = await response.text();
         if (!response.ok) {
-          console.error(`Failed to push metrics data to Grafana: ${text}\n${body}`);
+          console.error(
+            `Failed to push metrics data to Grafana: ${text}\n${body}`
+          );
         }
       })
       .catch((error) => {
-        console.error('Error pushing metrics:', error);
+        console.error("Error pushing metrics:", error);
       });
   }
 }
