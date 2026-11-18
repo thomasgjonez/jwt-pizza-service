@@ -29,9 +29,15 @@ function httpLogger(req, res, next) {
   const send = res.send;
   res.send = (resBody) => {
     if (!isTest) {
+      // req.path is read as Express is unwinding nested routers (apiRouter,
+      // authRouter, etc.), each of which strips its own mount prefix off
+      // req.url for the duration of its dispatch - so by the time res.send
+      // runs deep in a route handler, req.path is often just "/" instead of
+      // the real route. req.originalUrl is never rewritten, so it stays
+      // correct regardless of nesting.
       const logData = {
         method: req.method,
-        path: req.path,
+        path: req.originalUrl.split('?')[0],
         statusCode: res.statusCode,
         authorized: !!req.headers.authorization,
         user: toUserInfo(requestContext.getUser()),
