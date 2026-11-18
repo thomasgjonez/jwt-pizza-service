@@ -258,6 +258,7 @@ class Metrics {
       },
     })
       .then(async (response) => {
+        const text = await response.text();
         if (!response.ok) {
           console.error(
             `Failed to push metrics data to Grafana: ${text}\n${body}`
