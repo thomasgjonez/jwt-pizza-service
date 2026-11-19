@@ -85,7 +85,7 @@ class Metrics {
 
   getCpuUsagePercentage() {
     const cpuUsage = os.loadavg()[0] / os.cpus().length;
-    return cpuUsage.toFixed(2) * 100;
+    return Number((cpuUsage * 100).toFixed(2));
   }
 
   getMemoryUsagePercentage() {
