@@ -8,6 +8,7 @@ const config = require('./config.js');
 const metrics = require('./metrics.js');
 const logger = require('./logger.js');
 const requestContext = require('./requestContext.js');
+const { StatusCodeError } = require('./endpointHelper.js');
 
 const app = express();
 app.use(metrics.requestTracker);
@@ -53,7 +54,12 @@ app.use('*', (req, res) => {
 
 // Default error handler for all exceptions and errors.
 app.use((err, req, res, next) => {
-  logger.unhandledError(err);
+  // StatusCodeError is the deliberate "expected failure" path (bad login, forbidden,
+  // etc.) - those already show up with their real status code in the HTTP log.
+  // Only log genuinely unanticipated errors here.
+  if (!(err instanceof StatusCodeError)) {
+    logger.unhandledError(err);
+  }
   res.status(err.statusCode ?? 500).json({ message: err.message, stack: err.stack });
   next();
 });

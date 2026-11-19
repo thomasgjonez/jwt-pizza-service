@@ -24,6 +24,11 @@ function toUserInfo(user) {
   return user ? { id: user.id, email: user.email } : null;
 }
 
+// Every log type below shares the same handful of column names (auth, status,
+// req, res, user, ip) instead of type-specific ones (query/reqBody/request...),
+// so a combined Grafana table ends up with one `req`/`res`/`status` column
+// instead of a different one per log type.
+
 //middleware
 function httpLogger(req, res, next) {
   const send = res.send;
@@ -38,11 +43,12 @@ function httpLogger(req, res, next) {
       const logData = {
         method: req.method,
         path: req.originalUrl.split('?')[0],
-        statusCode: res.statusCode,
-        authorized: !!req.headers.authorization,
+        status: res.statusCode,
+        auth: !!req.headers.authorization,
         user: toUserInfo(requestContext.getUser()),
-        reqBody: JSON.stringify(req.body),
-        resBody: JSON.stringify(resBody),
+        req: JSON.stringify(req.body),
+        res: JSON.stringify(resBody),
+        ip: req.ip,
       };
       const level = pizzaLogger.statusToLogLevel(res.statusCode);
       pizzaLogger.log(level, "http", logData);
@@ -58,7 +64,7 @@ function dbLog(sql) {
   if (isTest) return;
   const safeSql = sql.replace(/password\s*=\s*'[^']*'/gi, "password='*****'");
   pizzaLogger.log("info", "db", {
-    query: safeSql,
+    req: safeSql,
     user: toUserInfo(requestContext.getUser()),
   });
 }
@@ -66,18 +72,21 @@ function dbLog(sql) {
 // Called after a call to the pizza factory completes.
 function factoryLog({ user, request, response, statusCode }) {
   if (isTest) return;
-  pizzaLogger.factoryLogger({
+  pizzaLogger.log("info", "factory", {
     user: toUserInfo(user),
-    statusCode,
-    request,
-    response,
+    status: statusCode,
+    req: JSON.stringify(request),
+    res: JSON.stringify(response),
   });
 }
 
 // Called from the top-level Express error handler for unhandled exceptions.
 function unhandledError(err) {
   if (isTest) return;
-  pizzaLogger.unhandledErrorLogger(err);
+  pizzaLogger.log("error", "unhandledError", {
+    res: err.message,
+    status: err.statusCode,
+  });
 }
 
 module.exports = { httpLogger, dbLog, factoryLog, unhandledError };
